@@ -41,8 +41,8 @@ git clone --depth 1 "$REPO" "$TMP_DIR" 2>/dev/null || {
 
 echo "→ Installing to $BIN_DIR and $LIB_DIR..."
 $SUDO mkdir -p "$LIB_DIR"
-$SUDO cp "$TMP_DIR/buildjar" "$BIN_DIR/buildjar"
-$SUDO cp "$TMP_DIR/lib/"*.sh "$LIB_DIR/"
+$SUDO cp "$TMP_DIR/buildjar/buildjar" "$BIN_DIR/buildjar"
+$SUDO cp "$TMP_DIR/buildjar/lib/"*.sh "$LIB_DIR/"
 $SUDO chmod +x "$BIN_DIR/buildjar"
 $SUDO chmod -R 755 "$(dirname "$LIB_DIR")"
 
