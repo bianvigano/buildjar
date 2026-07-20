@@ -34,6 +34,10 @@ sudo bash install.sh
 ## Requirements
 
 - Java JDK (javac required)
+- No JDK? Install all versions:
+```bash
+curl -fsSL https://raw.githubusercontent.com/bianvigano/buildjar/main/install-jdk.sh | bash
+```
 - inotify-tools (`sudo apt install inotify-tools`) — only for `--watch`
 - SCP — only for `--push`
 
