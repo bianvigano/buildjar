@@ -19,18 +19,16 @@ buildjar server1      # load saved preset
 
 ## Quick Install
 
+One command:
 ```bash
-sudo mkdir -p /usr/local/lib/buildjar/lib
-sudo cp buildjar /usr/local/bin/buildjar
-sudo cp lib/*.sh /usr/local/lib/buildjar/lib/
-sudo chmod -R 755 /usr/local/lib/buildjar
-sudo chmod +x /usr/local/bin/buildjar
+curl -fsSL https://raw.githubusercontent.com/bianvigano/buildjar/main/install.sh | bash
 ```
 
-Optional alias:
+Or clone manually:
 ```bash
-echo "alias bikinjar='buildjar'" >> ~/.bash_aliases
-source ~/.bashrc
+git clone https://github.com/bianvigano/buildjar.git
+cd buildjar
+sudo bash install.sh
 ```
 
 ## Requirements
