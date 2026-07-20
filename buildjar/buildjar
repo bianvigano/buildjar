@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+# buildjar / bikinjar — Universal Java Project Builder (Gradle / Maven)
+# Usage: buildjar [flags|preset|--menu]
+#
+# Library: /usr/local/lib/buildjar/lib/
+#   utils.sh     Colors, logging
+#   detect.sh    Project detection, mod loader, Java check
+#   build.sh     Gradle/Maven build engine
+#   presets.sh   Save/load/list preset configs
+#   scan.sh      Project scan/analysis
+#   version.sh   Version bump
+#   watch.sh     File watch + auto-rebuild
+#   extra.sh     Test, check-updates, push
+#   menu.sh      Interactive menu + help page
+
+set -Eeuo pipefail
+
+BUILDJAR_LIB="/usr/local/lib/buildjar/lib"
+source "$BUILDJAR_LIB/utils.sh"
+
+# ── Default flags ────────────────────────────────────────
+SCAN=false; THIN=false; CLEAN=false; NO_DAEMON=false
+STACKTRACE=false; VERBOSE=false; DRY_RUN=false; QUIET=false
+WATCH=false; TEST_ONLY=false; CHECK_UPDATES=false
+OUT_DIR=""; TASK=""; INSTALL_DIR=""; PUSH_TARGET=""
+VERSION_BUMP=""; PROFILE=""; MENU=false; SAVE_PRESET=""
+PRESET_NAME=""; LIST_PRESETS=false
+
+# ── Parse flags ──────────────────────────────────────────
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --scan)          SCAN=true ;;
+    --thin)          THIN=true ;;
+    --clean)         CLEAN=true ;;
+    --no-daemon)     NO_DAEMON=true ;;
+    --stacktrace)    STACKTRACE=true ;;
+    --info)          VERBOSE=true ;;
+    --dry-run)       DRY_RUN=true ;;
+    --watch)         WATCH=true ;;
+    --test)          TEST_ONLY=true ;;
+    --check-updates) CHECK_UPDATES=true ;;
+    --menu)          MENU=true ;;
+    --list)          LIST_PRESETS=true ;;
+    -q|--quiet)      QUIET=true ;;
+    -o|--out)        OUT_DIR="$2"; shift ;;
+    --task)          TASK="$2"; shift ;;
+    --install)       INSTALL_DIR="$2"; shift ;;
+    --push)          PUSH_TARGET="$2"; shift ;;
+    --version)       VERSION_BUMP="$2"; shift ;;
+    --profile)       PROFILE="$2"; shift ;;
+    --save)          SAVE_PRESET="$2"; shift ;;
+    -h|--help)       MENU_HELP=true ;;
+    -*)              die "Unknown flag: $1" ;;
+    *)               PRESET_NAME="$1" ;;
+  esac
+  shift
+done
+
+$QUIET && exec >/dev/null
+
+START_TIME=$(date +%s)
+PROJECT_DIR="$(pwd)"
+PRESET_DIR="$HOME/.local/share/buildjar"
+mkdir -p "$PRESET_DIR" 2>/dev/null || true
+
+# ── Load library modules (lazy, only what's needed) ─────
+source "$BUILDJAR_LIB/detect.sh"
+source "$BUILDJAR_LIB/presets.sh"
+
+# ── Mode routing ─────────────────────────────────────────
+check_java
+
+if $LIST_PRESETS; then
+  list_presets
+  exit 0
+fi
+
+if ${MENU_HELP:-false}; then
+  source "$BUILDJAR_LIB/menu.sh"
+  show_full_help
+  exit 0
+fi
+
+if $MENU; then
+  source "$BUILDJAR_LIB/build.sh"
+  source "$BUILDJAR_LIB/scan.sh"
+  source "$BUILDJAR_LIB/version.sh"
+  source "$BUILDJAR_LIB/watch.sh"
+  source "$BUILDJAR_LIB/extra.sh"
+  source "$BUILDJAR_LIB/menu.sh"
+  show_menu
+  exit 0
+fi
+
+if [[ -n "$SAVE_PRESET" ]]; then
+  save_preset "$SAVE_PRESET"
+  exit 0
+fi
+
+if [[ -n "$PRESET_NAME" ]]; then
+  load_preset "$PRESET_NAME"
+fi
+
+if [[ -z "$PRESET_NAME" ]]; then
+  load_project_preset
+fi
+
+source "$BUILDJAR_LIB/build.sh"
+detect_project
+
+if $SCAN; then
+  source "$BUILDJAR_LIB/scan.sh"
+  scan_project
+  exit 0
+fi
+
+if [[ -n "$VERSION_BUMP" ]]; then
+  source "$BUILDJAR_LIB/version.sh"
+  bump_version "$VERSION_BUMP"
+  exit 0
+fi
+
+if $CHECK_UPDATES; then
+  source "$BUILDJAR_LIB/extra.sh"
+  check_dependency_updates
+  exit 0
+fi
+
+if $TEST_ONLY; then
+  source "$BUILDJAR_LIB/extra.sh"
+  run_tests
+  exit 0
+fi
+
+if $WATCH; then
+  source "$BUILDJAR_LIB/watch.sh"
+  watch_loop
+  exit 0
+fi
+
+# ── Default: Build ───────────────────────────────────────
+show_info() {
+  echo ""
+  echo "═══════════════════════════════════════════"
+  echo "  Project: $(basename "$PROJECT_DIR")"
+  echo "  Tool:    $( $HAS_GRADLE && echo "Gradle" || echo "Maven" )"
+  local dt; dt=$(detect_mod_task) || dt=""
+  [[ -n "$dt" ]] && echo "  Loader:  $(label_mod_task "$dt")"
+  echo "  Type:    $( $THIN && echo "Thin JAR" || echo "Fat JAR" )"
+  $CLEAN && echo "  Clean:   yes"
+  $NO_DAEMON && echo "  Daemon:  off"
+  [[ -n "$TASK" ]]     && echo "  Task:    $TASK"
+  [[ -n "$PROFILE" ]]  && echo "  Profile: $PROFILE"
+  [[ -n "$OUT_DIR" ]]     && echo "  Output:  $OUT_DIR"
+  [[ -n "$INSTALL_DIR" ]] && echo "  Install: $INSTALL_DIR"
+  [[ -n "$PUSH_TARGET" ]] && echo "  Push:    $PUSH_TARGET"
+  echo "═══════════════════════════════════════════"
+  echo ""
+}
+
+show_info
+do_build
+
+if [[ -n "$PUSH_TARGET" ]]; then
+  source "$BUILDJAR_LIB/extra.sh"
+  push_jar "$PUSH_TARGET"
+fi
